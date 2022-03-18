@@ -6,9 +6,7 @@
 #include<mmsystem.h>
 
 #define KEY_DOWN(vKey) ((GetAsyncKeyState(vKey) & 0x8000) ? 1:0)
-
-#define jssl 50
-
+#define jssl 100
 #pragma comment(lib,"Winmm.lib")	
 
 using namespace std;
@@ -18,6 +16,7 @@ IMAGE  IMG_wdss_z0, IMG_wdss_y0, IMG_wdss_z1, IMG_wdss_y1, IMG_wdss_z2, IMG_wdss
 IMAGE  IMG_wdss_z5, IMG_wdss_y5, IMG_wdss_z6, IMG_wdss_y6, IMG_wdss_z7, IMG_wdss_y7, IMG_wdss_z8, IMG_wdss_y8, IMG_wdss_z9, IMG_wdss_y9;
 IMAGE  IMG_wdss_z10, IMG_wdss_y10, IMG_wdss_z11, IMG_wdss_y11, IMG_wdss_z12, IMG_wdss_y12; 
 IMAGE  IMG_commenzombie0, IMG_commenzombie1, IMG_commenzombie2, IMG_commenzombie3, IMG_commenzombie4, IMG_commenzombie5, IMG_commenzombie6, IMG_commenzombie7, IMG_commenzombie8, IMG_commenzombie9, IMG_commenzombie10,IMG_commenzombie11, IMG_commenzombie12, IMG_commenzombie13, IMG_commenzombie14, IMG_commenzombie15, IMG_commenzombie16, IMG_commenzombie17, IMG_commenzombie18, IMG_commenzombie19, IMG_commenzombie20, IMG_commenzombie21;
+IMAGE  kp_sfss, kp_jqwd;
 int ZombieLable = 1;
 int ZombieNum = 0;
 int PeaNum = 0;
@@ -42,11 +41,17 @@ int srcX;
 
 int wdhb = 15;
 int hjs = 3;
-
+bool PickUpSFSS = false;
+bool PickUpJQWD = false;
 TCHAR blank[] = _T("    ");
 TCHAR tc_commenpea[] = _T("当前豌豆类型：普通豌豆   消耗1个豌豆币！");
 TCHAR tc_icepea[] = _T("当前豌豆类型：寒冰豌豆   消耗2个豌豆币！");
 TCHAR tc_firepea[] = _T("当前豌豆类型：火焰豌豆   消耗3个豌豆币！");
+
+int kx; //生成的卡牌的坐标 -双发豌豆
+int ky;
+int jx;//生成的卡牌的坐标 -机枪豌豆
+int jy;
 
 void drawAlpha(IMAGE* picture, int  picture_x, int picture_y) //x为载入图片的X坐标，y为Y坐标
 {
@@ -121,18 +126,17 @@ public:
 		Speed = speed;
 		HP = hp;
 		Direction = direction;
+		ZWLX = 0;
 	}
 
 	void MoveUp() { if(this->Y>6) Y -= Speed; }
 	void MoveDown() { if (this->Y <950) Y += Speed; }
 	void MoveLeft() { if(this->X>6) X -= Speed; Direction = 0; }
 	void MoveRight() { if(this->X<980) X += Speed; Direction = 1; }
-
 	int GetX() { return X; }
 	int GetY() { return Y; }
 	int GetDirection() { return Direction; }
 	int GetPeaclass() { return Peaclass; }
-
 	void Print()
 	{
 		if (Direction == 0)
@@ -175,21 +179,13 @@ public:
 			}
 		}//right
 	}
-	void CommenPea()
-	{
-		Peaclass = 0;
-		cout << "change commen pea class!" << endl;
-	}
-	void IcePea()
-	{
-		Peaclass = 1;
-		cout << "change ice pea class!" << endl;
-	}
-	void FirePea()
-	{
-		Peaclass = 2;
-		cout << "change fire pea class!" << endl;
-	}
+	void CommenPea() { Peaclass = 0; }
+	void IcePea() { Peaclass = 1; }
+	void FirePea() { Peaclass = 2; }
+	void SFSS() { ZWLX = 1; }
+	void JQWD() { ZWLX = 2; }
+	void SXSS() { ZWLX = 3; }
+	int GetZWLX() { return ZWLX; }
 
 private:
 	int X;
@@ -198,6 +194,7 @@ private:
 	int Peaclass;
 	int Speed;
 	int HP;
+	int ZWLX;
 };
 class commenzombie
 {
@@ -212,7 +209,6 @@ public:
 		Speed = speed;
 		pnglablezombie = 0;
 	}
-
 	void CZActive() { Active = true; cout << "Zombie -> Active Successfully!" << endl; }
 	void Die() { if (Active == true) { Active = false; ZombieNum--; wdhb += 7; } }
 	void Move() { if (Active == true) X -= Speed; }
@@ -270,18 +266,20 @@ commenzombie ptjs[1001];
 class pea 
 {
 public:
-	void SetupPea()
+	void UsePeaCoin()
 	{
-		X = wdss.GetX();
-		Y = wdss.GetY();
-		PeaClass = wdss.GetPeaclass();
 		if (PeaClass == 0) wdhb -= 1;
 		else if (PeaClass == 1) wdhb -= 2;
 		else wdhb -= 3;
+	}
+	void SetupPea(int dx,int dy)
+	{
+		PeaClass = wdss.GetPeaclass();
+		X = wdss.GetX() + dx;
+		Y = wdss.GetY() + dy;
 		Direction = wdss.GetDirection();
 		Active = true;
 	}
-
 	void Die()
 	{
 		Active = false;
@@ -294,7 +292,6 @@ public:
 			else X += 10;
 		}
 	}
-
 	void Attack(commenzombie &js)
 	{
 		switch (this->PeaClass)
@@ -311,7 +308,6 @@ public:
 			js.UnSlowDown();
 		}
 	}
-
 	void Print()
 	{
 		if (Active == true)
@@ -321,7 +317,6 @@ public:
 			if (PeaClass == 2) drawAlpha(&IMG_firepea, X, Y);
 		}
 	}
-
 	bool GetAct() { return Active; }
 	int GetX() { return X; }
 	int GetY() { return Y; }
@@ -372,7 +367,7 @@ void PeaMove()
 }
 void KBInput() {
 
-	if (_kbhit())         
+	if (_kbhit())
 	{
 		int msg = _getch();
 		switch (msg)
@@ -404,21 +399,53 @@ void KBInput() {
 			wdss.MoveLeft();
 			break;
 		}
-		
-		case 120:        //ZombiesDie
-		{
-			ptjs[1].Die();
-			break;
-		}
 
 		case 74:
 		case 106:
 		{
-			PeaNum++;
-			p[PeaNum].SetupPea();
+			switch (wdss.GetZWLX())
+			{
+			case 0:
+			{
+				PeaNum++;
+				if(wdss.GetDirection() == 0) p[PeaNum].SetupPea(0, 0);
+				else p[PeaNum].SetupPea(50, 0);
+				p[PeaNum].UsePeaCoin();
+				break;
+			}
+			case 1:
+			{
+
+				
+				PeaNum++;
+				if (wdss.GetDirection() == 0) p[PeaNum].SetupPea(-25, 0);
+				else p[PeaNum].SetupPea(50, 0);
+				p[PeaNum].UsePeaCoin();
+				PeaNum++;
+				if (wdss.GetDirection() == 0) p[PeaNum].SetupPea(0, 0);
+				else p[PeaNum].SetupPea(75, 0);
+				break;
+			}
+			case 2:
+			{	
+				PeaNum++;
+				if (wdss.GetDirection() == 0) p[PeaNum].SetupPea(-75, 0);
+				else p[PeaNum].SetupPea(50, 0);
+				p[PeaNum].UsePeaCoin();
+				PeaNum++;
+				if (wdss.GetDirection() == 0) p[PeaNum].SetupPea(-50, 0);
+				else p[PeaNum].SetupPea(75, 0);
+				PeaNum++;
+				if (wdss.GetDirection() == 0) p[PeaNum].SetupPea(-25, 0);
+				else p[PeaNum].SetupPea(100, 0);
+				PeaNum++;
+				if (wdss.GetDirection() == 0) p[PeaNum].SetupPea(0, 0);
+				else p[PeaNum].SetupPea(125, 0);
+				break;
+			}
+			}
 			break;
 		}
-
 		case 113:           //Q按下，更改豌豆类型
 		case 81:
 		{
@@ -431,7 +458,6 @@ void KBInput() {
 		}
 	}
 }
-
 void OutPutPeaClass()
 {
 	int c = wdss.GetPeaclass();
@@ -449,6 +475,34 @@ void OutPutPeaClass()
 	}
 }
 
+void BoomKP()
+{
+	if (PickUpSFSS == false && ptjs[1].GetHP() <= 0)
+	{
+		kx = ptjs[1].GetX();
+		ky = ptjs[1].GetY();
+		putimage(kx, ky, &kp_sfss);
+	}
+	if (PickUpJQWD == false && ptjs[5].GetHP() <= 0)
+	{
+		jx = ptjs[3].GetX();
+		jy = ptjs[3].GetY();
+		putimage(jx, jy, &kp_jqwd);
+	}
+}
+void IfPick()
+{
+	if (abs(wdss.GetX() - kx) <= 30 && abs(wdss.GetY() - ky) <= 30)
+	{
+		PickUpSFSS = true;
+		wdss.SFSS();
+	}
+	if (wdss.GetZWLX() == 1 && abs(wdss.GetX() - jx) <= 30 && abs(wdss.GetY() - jy) <= 30)
+	{
+		PickUpJQWD = true;
+		wdss.JQWD();
+	}
+}
 void Fresh()
 {
 	BeginBatchDraw();
@@ -457,6 +511,8 @@ void Fresh()
 	putimage(0, 0, &IMG_background);
 	outtextxy(0, 20, t);
 	OutPutPeaClass();
+	BoomKP();
+	IfPick();
 	wdss.Print();
 	for (int pn = 1; pn <= PeaNum; pn++)
 	{
@@ -467,8 +523,7 @@ void Fresh()
 		ptjs[t].Print();
 	}
 	Sleep(50);
-	EndBatchDraw();
-	
+	FlushBatchDraw();
 }
 void Setup()
 {
@@ -533,6 +588,8 @@ void Setup()
 	loadimage(&IMG_icepea, _T("icepea.png"));
 	loadimage(&IMG_firepea, _T("firepea.png"));
 
+	loadimage(&kp_sfss, _T("sfss.bmp"));
+	loadimage(&kp_jqwd, _T("jqwd.bmp"));
 	putimage(0, 0, &IMG_background);
 }
 void GameOver()
@@ -569,7 +626,6 @@ void ShotOn()
 					if (abs(p[pn].GetX() - ptjs[t].GetX())<8)
 					{
 						p[pn].Attack(ptjs[t]);
-						//cout << "Zombie ->" << t << "HP->   " << ptjs[t].GetHP() << endl;
 						p[pn].Die();
 					}
 				}
@@ -580,7 +636,7 @@ void ShotOn()
 
 void ZombiesBoost()
 {
-	if (ZombieLable == 7)
+	if (ZombieLable == 15)
 	{
 		hjs = 8;
 		mciSendString("close ksmusic", NULL, 0, NULL); // 先把前面一次的音乐关闭
